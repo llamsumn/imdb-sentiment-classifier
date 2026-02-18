@@ -46,24 +46,19 @@ class BOWpipe:
     doc_freq = np.sum(feature_vectors > 0, axis=0)
     
     # Avoid division by zero by adding 1 (Smoothing)
-    IDF = np.log((n_docs ) / (doc_freq )) 
-    
-    transformed_feature_vectors = []
+    IDF = np.log((n_docs + 1) / (doc_freq + 1)) + 1
 
     # 2. Calculate TF * IDF
-    for vector in feature_vectors:
-      total_terms = sum(vector) # Standard TF denominator
-      
-      if total_terms > 0:
-        # Vectorized operation for speed
-        tf = vector / total_terms
-        tfidf_vec = tf * IDF
-        transformed_feature_vectors.append(tfidf_vec)
-      else:
-        # Handle empty documents (preserve shape)
-        transformed_feature_vectors.append(np.zeros(n_vocab))
+    total_terms = feature_vectors.sum(axis=1, keepdims=True)
+    total_terms[total_terms == 0] = 1  # avoid division by zero for empty docs
+    tf = feature_vectors / total_terms
 
-    return np.array(transformed_feature_vectors)
+    tfidf = tf * IDF
+
+    # 3. Normalize TF-IDF vectors
+    norms = np.linalg.norm(tfidf, axis=1, keepdims=True)
+    norms[norms == 0] = 1
+    return tfidf / norms
   
   def process_document(self, corpus):
     processed_corpus = []
@@ -91,7 +86,6 @@ class Gaussian_Classifier:
 
     def train_model(self, encoded_corpus, labels):
         print(f"Training {self.title} model...")
-        model = None
         model = GaussianNB()
         model.fit(encoded_corpus, labels)
         return model
@@ -101,4 +95,4 @@ class Gaussian_Classifier:
         precision = precision_score(self.labels_test, predictions)
         recall = recall_score(self.labels_test, predictions)
         accuracy = accuracy_score(self.labels_test, predictions)
-        print(f"{self.title}: Acc. - {accuracy:.2f}%, Prec. - {precision:.2f}%, Rec. - {recall:.2f}%, ")
+        print(f"{self.title}: Acc. - {accuracy * 100:.2f}%, Prec. - {precision * 100:.2f}%, Rec. - {recall * 100:.2f}%")
